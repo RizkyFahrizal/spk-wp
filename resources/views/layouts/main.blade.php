@@ -13,12 +13,13 @@
             <div class="flex justify-between">
                 <div class="flex space-x-7">
                     <div>
-                        <a href="{{ route('hitung.index') }}" class="flex items-center py-4 px-2 text-white font-bold text-lg">
+                        <a href="{{ url('/') }}" class="flex items-center py-4 px-2 text-white font-bold text-lg">
                             SPK WP
                         </a>
                     </div>
                     <div class="hidden md:flex items-center space-x-1">
                         <a href="{{ route('hitung.index') }}" class="py-4 px-2 text-blue-200 hover:text-white transition duration-300">Hitung</a>
+                        <a href="{{ route('riwayat.index') }}" class="py-4 px-2 text-blue-200 hover:text-white transition duration-300">Riwayat Hitung</a>
                         <a href="{{ route('karyawan.index') }}" class="py-4 px-2 text-blue-200 hover:text-white transition duration-300">Data Karyawan</a>
                         <a href="{{ route('kriteria.index') }}" class="py-4 px-2 text-blue-200 hover:text-white transition duration-300">Data Kriteria</a>
                     </div>

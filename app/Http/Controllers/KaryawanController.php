@@ -4,78 +4,77 @@ namespace App\Http\Controllers;
 
 use App\Models\Karyawan;
 use App\Models\Kriteria;
-use App\Models\Nilai;
 use Illuminate\Http\Request;
 
 class KaryawanController extends Controller
 {
+    // Menampilkan daftar karyawan
     public function index()
     {
-        // Load data karyawan beserta nilainya agar efisien
-        $karyawans = Karyawan::with('nilai')->paginate(10); 
-        $kriterias = Kriteria::all();
+        // Ambil data karyawan, urutkan terbaru
+        $karyawans = Karyawan::latest()->paginate(10);
+        
+        // Ambil data kriteria buat header tabel (opsional, biar labelnya dinamis)
+        $kriterias = Kriteria::all(); 
+        
         return view('karyawan.index', compact('karyawans', 'kriterias'));
     }
 
+    // Form Tambah
     public function create()
     {
-        // Kirim data kriteria ke view untuk jadi input form dinamis
+        // Kita butuh data kriteria untuk label input form (Produktivitas, Sikap, dll)
         $kriterias = Kriteria::all();
         return view('karyawan.create', compact('kriterias'));
     }
 
+    // Proses Simpan
     public function store(Request $request)
     {
         $request->validate([
             'nama' => 'required',
-            'nilai' => 'required|array', // Validasi input array nilai
+            'k1' => 'required|numeric',
+            'k2' => 'required|numeric',
+            'k3' => 'required|numeric',
+            'k4' => 'required|numeric',
+            'k5' => 'required|numeric',
         ]);
 
-        // 1. Simpan Karyawan
-        $karyawan = Karyawan::create($request->only('nama', 'jabatan'));
+        // Simpan semua data request langsung ke tabel karyawans
+        // (Pastikan $fillable di Model Karyawan sudah lengkap!)
+        Karyawan::create($request->all());
 
-        // 2. Simpan Nilai-nilainya
-        foreach ($request->nilai as $kriteria_id => $nilai_input) {
-            Nilai::create([
-                'karyawan_id' => $karyawan->id,
-                'kriteria_id' => $kriteria_id,
-                'nilai' => $nilai_input
-            ]);
-        }
-
-        return redirect()->route('karyawan.index')->with('success', 'Karyawan berhasil ditambahkan');
+        return redirect()->route('karyawan.index')->with('success', 'Data Karyawan Berhasil Disimpan');
     }
 
+    // Form Edit
     public function edit(Karyawan $karyawan)
     {
         $kriterias = Kriteria::all();
-        // Ambil nilai lama dan ubah formatnya biar mudah diakses di view
-        // Format: [id_kriteria => nilai]
-        $nilaiLama = $karyawan->nilai->pluck('nilai', 'kriteria_id')->toArray();
-        
-        return view('karyawan.edit', compact('karyawan', 'kriterias', 'nilaiLama'));
+        return view('karyawan.edit', compact('karyawan', 'kriterias'));
     }
 
+    // Proses Update
     public function update(Request $request, Karyawan $karyawan)
     {
-        // 1. Update Data Diri
-        $karyawan->update($request->only('nama', 'jabatan'));
+        $request->validate([
+            'nama' => 'required',
+            'k1' => 'required|numeric',
+            'k2' => 'required|numeric',
+            'k3' => 'required|numeric',
+            'k4' => 'required|numeric',
+            'k5' => 'required|numeric',
+        ]);
 
-        // 2. Update Nilai (Looping input)
-        foreach ($request->nilai as $kriteria_id => $nilai_baru) {
-            // Update atau Create jika belum ada (upsert)
-            Nilai::updateOrCreate(
-                ['karyawan_id' => $karyawan->id, 'kriteria_id' => $kriteria_id],
-                ['nilai' => $nilai_baru]
-            );
-        }
+        $karyawan->update($request->all());
 
-        return redirect()->route('karyawan.index')->with('success', 'Data karyawan berhasil diupdate');
+        return redirect()->route('karyawan.index')->with('success', 'Data Karyawan Berhasil Diupdate');
     }
 
+    // Hapus
     public function destroy(Karyawan $karyawan)
     {
-        $karyawan->delete(); // Otomatis hapus nilai di tabel relasi (karena cascade)
-        return redirect()->route('karyawan.index')->with('success', 'Karyawan dihapus');
+        $karyawan->delete();
+        return redirect()->route('karyawan.index')->with('success', 'Data Karyawan Dihapus');
     }
 }

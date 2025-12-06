@@ -20,11 +20,11 @@ class KriteriaSeeder extends Seeder
         Schema::enableForeignKeyConstraints();
 
         $data = [
-            ['kode' => 'C1', 'nama' => 'Produktifitas',   'jenis' => 'benefit', 'bobot' => 0.25],
-            ['kode' => 'C2', 'nama' => 'Keterampilan',    'jenis' => 'benefit', 'bobot' => 0.25],
-            ['kode' => 'C3', 'nama' => 'Akhlak',          'jenis' => 'benefit', 'bobot' => 0.20],
-            ['kode' => 'C4', 'nama' => 'Absensi',         'jenis' => 'cost',    'bobot' => 0.15],
-            ['kode' => 'C5', 'nama' => 'Kesalahan Kerja', 'jenis' => 'cost',    'bobot' => 0.15],
+            ['kode' => 'K1', 'nama' => 'Produktivitas',   'jenis' => 'benefit', 'bobot_w' => 5, 'bobot' => 0],
+            ['kode' => 'K2', 'nama' => 'Sikap Kerja',     'jenis' => 'benefit', 'bobot_w' => 4, 'bobot' => 0],
+            ['kode' => 'K3', 'nama' => 'Kedisiplinan',    'jenis' => 'benefit', 'bobot_w' => 5, 'bobot' => 0],
+            ['kode' => 'K4', 'nama' => 'Absensi',         'jenis' => 'cost',    'bobot_w' => 3, 'bobot' => 0],
+            ['kode' => 'K5', 'nama' => 'Kesalahan Kerja', 'jenis' => 'cost',    'bobot_w' => 5, 'bobot' => 0],
         ];
 
         DB::table('kriterias')->insert($data);

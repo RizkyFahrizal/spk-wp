@@ -9,11 +9,9 @@ class Karyawan extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['nama', 'jabatan'];
-
-    // Relasi: Karyawan punya banyak nilai
-    public function nilai()
-    {
-        return $this->hasMany(Nilai::class);
-    }
+    protected $fillable = [
+        'nama', 
+        'jabatan', 
+        'k1', 'k2', 'k3', 'k4', 'k5' 
+    ];
 }

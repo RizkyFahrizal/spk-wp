@@ -20,5 +20,11 @@ class DatabaseSeeder extends Seeder
         //     'name' => 'Test User',
         //     'email' => 'test@example.com',
         // ]);
+
+        // Panggil Class Seeder yang sudah kita buat di sini
+        $this->call([
+            KriteriaSeeder::class,
+            KaryawanSeeder::class, // <--- Pastikan baris ini ADA
+        ]);
     }
 }

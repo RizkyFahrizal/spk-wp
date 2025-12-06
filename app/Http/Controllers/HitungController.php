@@ -8,72 +8,69 @@ use App\Models\Kriteria;
 
 class HitungController extends Controller
 {
-    // Halaman Utama: Tampilkan form pilih karyawan
     public function index()
     {
-        $karyawans = Karyawan::all(); // Ambil semua data untuk dipilih
+        // Tampilkan halaman awal dengan daftar semua karyawan untuk dipilih
+        $karyawans = Karyawan::all();
         return view('hitung.index', compact('karyawans'));
     }
 
-    // Proses Perhitungan WP
     public function proses(Request $request)
     {
-        // 1. Validasi: Pastikan user memilih minimal 1 karyawan
+        // 1. Validasi: User harus memilih minimal 1 karyawan
         $request->validate([
             'karyawan_ids' => 'required|array|min:1'
         ], [
-            'karyawan_ids.required' => 'Silakan pilih karyawan terlebih dahulu!'
+            'karyawan_ids.required' => 'Silakan centang minimal satu karyawan!'
         ]);
 
-        // 2. Ambil data Kriteria & Karyawan yang dipilih
-        $kriterias = Kriteria::all();
-        $karyawans = Karyawan::with('nilai') // Load relasi nilai
-                    ->whereIn('id', $request->karyawan_ids)
-                    ->get();
-
-        if ($karyawans->isEmpty()) {
-            return back()->with('error', 'Data karyawan tidak ditemukan.');
-        }
-
-        // --- Variabel Penampung Hasil ---
-        $matriks_awal = [];  // Tabel 1
-        $matriks_pangkat = []; // Tabel 2 (Nilai ^ Bobot)
-        $vektor_S = [];      // Hasil kali per baris
-        $vektor_V = [];      // Tabel 3 (Ranking)
-        $total_S = 0;        // Penyebut rumus V
-
-        // --- LOGIKA UTAMA WP ---
+        // 2. Ambil Data
+        // Ambil data bobot terbaru dari tabel Kriteria (K1-K5)
+        $kriterias = Kriteria::orderBy('kode')->get();
         
+        // Ambil data karyawan yang dipilih user
+        $karyawans = Karyawan::whereIn('id', $request->karyawan_ids)->get();
+
+        // Variabel Penampung Hasil
+        $tabel1_matriks_awal = [];
+        $tabel2_hasil_pangkat = [];
+        $vektor_S = [];
+        $vektor_V = [];
+        $total_S = 0;
+
+        // --- MULAI PERHITUNGAN METODE WP ---
+
         foreach ($karyawans as $k) {
-            $nilai_S_karyawan = 1; // Inisialisasi perkalian (identitas perkalian = 1)
-            $row_pangkat = []; // Baris untuk tabel 2
-            
-            // Map nilai karyawan biar mudah dipanggil berdasarkan ID Kriteria
-            // Contoh: [1 => 80, 2 => 85] (ID Kriteria => Nilai)
-            $nilai_map = $k->nilai->pluck('nilai', 'kriteria_id')->toArray();
+            $nilai_S_karyawan = 1; // Nilai awal perkalian = 1
+            $baris_pangkat = [];   // Untuk tampilan Tabel 2
 
             foreach ($kriterias as $krit) {
-                // Ambil nilai mentah (Default 0 jika belum diinput)
-                $nilai_asli = $nilai_map[$krit->id] ?? 0;
-                
-                // Simpan ke Tabel 1 (Matriks Awal)
-                $matriks_awal[$k->id][$krit->id] = $nilai_asli;
+                // A. AMBIL NILAI KARYAWAN (k1, k2, dst)
+                // Karena di DB kolomnya 'k1' (kecil), tapi kode kriteria 'K1' (besar)
+                // Kita pakai strtolower() biar cocok.
+                $nama_kolom = strtolower($krit->kode); // Jadi 'k1', 'k2'...
+                $nilai_asli = $k->$nama_kolom; 
 
-                // Tentukan Pangkat (Positif jika Benefit, Negatif jika Cost)
+                // Simpan ke Tabel 1 (Matriks Awal)
+                $tabel1_matriks_awal[$k->id][$krit->id] = $nilai_asli;
+
+                // B. TENTUKAN PANGKAT (BOBOT)
+                // Jika Benefit: Pangkat Positif (+w)
+                // Jika Cost: Pangkat Negatif (-w)
                 $pangkat = ($krit->jenis == 'cost') ? -($krit->bobot) : $krit->bobot;
 
-                // Hitung Nilai ^ Pangkat
-                // Handle nilai 0 agar tidak error (0 dipangkat negatif = infinite)
+                // C. HITUNG PANGKAT (Rumus WP: Nilai ^ Bobot)
+                // Cegah error jika nilai 0 dipangkatkan negatif (Infinite)
                 if ($nilai_asli == 0) {
-                    $hasil_pangkat = 0; // Atau beri nilai pinalti kecil misal 0.001
+                    $hasil_pangkat = 0; 
                 } else {
                     $hasil_pangkat = pow($nilai_asli, $pangkat);
                 }
 
-                // Simpan ke Tabel 2
-                $row_pangkat[$krit->id] = number_format($hasil_pangkat, 4);
+                // Simpan ke Tabel 2 (Hanya untuk display)
+                $baris_pangkat[$krit->id] = $hasil_pangkat;
 
-                // Update Vektor S (Perkalian Terus Menerus)
+                // D. KALIKAN TERUS UNTUK DAPAT NILAI S
                 // Jika ada satu saja nilai 0, maka S otomatis 0
                 if ($hasil_pangkat > 0) {
                     $nilai_S_karyawan *= $hasil_pangkat;
@@ -82,32 +79,31 @@ class HitungController extends Controller
                 }
             }
 
-            // Simpan Vektor S per Karyawan
+            // Simpan Vektor S si Karyawan ini
             $vektor_S[$k->id] = $nilai_S_karyawan;
-            $matriks_pangkat[$k->id] = $row_pangkat; // Data Tabel 2 lengkap
+            $tabel2_hasil_pangkat[$k->id] = $baris_pangkat;
             
-            // Tambahkan ke Total S (Sigma S)
+            // Tambahkan ke Total S (Sigma S) untuk pembagi nanti
             $total_S += $nilai_S_karyawan;
         }
 
-        // --- TAHAP AKHIR: MENGHITUNG VEKTOR V (PREFERENSI) ---
-        
+        // --- TAHAP AKHIR: MENGHITUNG VEKTOR V (Ranking) ---
+        // Rumus: V = S / Total_S
+
         foreach ($vektor_S as $id_karyawan => $nilai_s) {
-            // Rumus: V = S / Total_S
             $nilai_v = ($total_S > 0) ? ($nilai_s / $total_S) : 0;
             
-            // Cari nama karyawan berdasarkan ID
-            $nama_karyawan = $karyawans->firstWhere('id', $id_karyawan)->nama;
+            // Ambil nama karyawan
+            $nama = $karyawans->firstWhere('id', $id_karyawan)->nama;
 
-            // Simpan ke Tabel 3
             $vektor_V[] = [
                 'id' => $id_karyawan,
-                'nama' => $nama_karyawan,
+                'nama' => $nama,
                 'nilai' => $nilai_v
             ];
         }
 
-        // Sorting Ranking (Terbesar ke Terkecil)
+        // Sorting dari Nilai V Terbesar ke Terkecil (Juara 1 diatas)
         usort($vektor_V, function ($a, $b) {
             return $b['nilai'] <=> $a['nilai'];
         });
@@ -116,9 +112,9 @@ class HitungController extends Controller
         return view('hitung.index', [
             'karyawans' => Karyawan::all(), // Untuk form pilih lagi
             'kriterias' => $kriterias,
-            'hasil' => true, // Trigger untuk menampilkan tabel
-            'tabel1' => $matriks_awal,
-            'tabel2' => $matriks_pangkat,
+            'hasil' => true, // Penanda agar tabel muncul
+            'tabel1' => $tabel1_matriks_awal,
+            'tabel2' => $tabel2_hasil_pangkat,
             'vektor_S' => $vektor_S,
             'tabel3' => $vektor_V
         ]);
